@@ -266,8 +266,8 @@ function authView(){
   const title={signin:'Sign in',signup:'Create your account',reset:'Reset your password',newpass:'Choose a new password'}[m];
   return`<div class="auth"><form class="auth-card" data-form="auth" data-mode="${m}"><div class="auth-mark">${MARK}</div><div><div class="eyebrow">Radon Crew Desk</div><h1>${title}</h1></div>
     ${m==='signup'?`<label class="f"><span>Your name</span><input type="text" name="name" id="au-name" autocomplete="name" required></label>`:''}
-    ${m!=='newpass'?`<label class="f"><span>Email</span><input type="email" name="email" id="au-email" autocomplete="email" required></label>`:''}
-    ${m!=='reset'?`<label class="f"><span>${m==='newpass'?'New password':'Password'}</span><input type="password" name="password" id="au-pass" autocomplete="${m==='signin'?'current-password':'new-password'}" minlength="8" required></label>`:''}
+    ${m!=='newpass'?`<label class="f"><span>${m==='signin'?'Username or email':'Email'}</span><input type="${m==='signin'?'text':'email'}" name="email" id="au-email" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>`:''}
+    ${m!=='reset'?`<label class="f"><span>${m==='newpass'?'New password':'Password'}</span><input type="password" name="password" id="au-pass" autocomplete="${m==='signin'?'current-password':'new-password'}" ${m==='signin'?'':'minlength="8"'} required></label>`:''}
     ${a.err?`<div class="err" role="alert">${esc(a.err)}</div>`:''}${a.msg?`<div class="ok" role="status">${esc(a.msg)}</div>`:''}
     <button class="btn primary big">${{signin:'Sign in',signup:'Create account',reset:'Email me a reset link',newpass:'Save password'}[m]}</button>
     <div class="row" style="justify-content:space-between">
@@ -795,7 +795,7 @@ function suggestKind(jid){const j=job(jid);if(!j)return'test_place';return{lead:
 const FORM={
   auth:async(f)=>{const v=fd(f),m=f.dataset.mode;const btn=f.querySelector('button.primary');btn.disabled=true;S.auth.err='';S.auth.msg='';
     try{
-      if(m==='signin'){const {error}=await sb.auth.signInWithPassword({email:v.email,password:v.password});if(error)throw error}
+      if(m==='signin'){const login=v.email.trim().toLowerCase();const {error}=await sb.auth.signInWithPassword({email:login.includes('@')?login:login+'@example.com',password:v.password});if(error)throw error}
       if(m==='signup'){const {data,error}=await sb.auth.signUp({email:v.email,password:v.password,options:{data:{full_name:v.name},emailRedirectTo:location.origin}});if(error)throw error;
         if(!data.session){S.auth={mode:'signin',err:'',msg:'Check your email and click the confirmation link, then sign in here.'};renderRoot();return}}
       if(m==='reset'){const {error}=await sb.auth.resetPasswordForEmail(v.email,{redirectTo:location.origin});if(error)throw error;S.auth={mode:'signin',err:'',msg:'If that email has an account, a reset link is on its way.'};renderRoot();return}
