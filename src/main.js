@@ -1,6 +1,6 @@
 import './style.css';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, USERNAME_ONLY_LOGIN } from './config.js';
 
 /* ---------- constants ---------- */
 const STAGES=[['lead','New lead'],['testing','Testing'],['quoted','Quote sent'],['booked','Install booked'],['installed','Installed · retest due'],['complete','Complete'],['lost','Lost']];
@@ -266,12 +266,12 @@ function authView(){
   const title={signin:'Sign in',signup:'Create your account',reset:'Reset your password',newpass:'Choose a new password'}[m];
   return`<div class="auth"><form class="auth-card" data-form="auth" data-mode="${m}"><div class="auth-mark">${MARK}</div><div><div class="eyebrow">Radon Crew Desk</div><h1>${title}</h1></div>
     ${m==='signup'?`<label class="f"><span>Your name</span><input type="text" name="name" id="au-name" autocomplete="name" required></label>`:''}
-    ${m!=='newpass'?`<label class="f"><span>${m==='signin'?'Username or email':'Email'}</span><input type="${m==='signin'?'text':'email'}" name="email" id="au-email" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>`:''}
-    ${m!=='reset'?`<label class="f"><span>${m==='newpass'?'New password':'Password'}</span><input type="password" name="password" id="au-pass" autocomplete="${m==='signin'?'current-password':'new-password'}" ${m==='signin'?'':'minlength="8"'} required></label>`:''}
+    ${m!=='newpass'?`<label class="f"><span>${m==='signin'?(USERNAME_ONLY_LOGIN?'Your name':'Username or email'):'Email'}</span><input type="${m==='signin'?'text':'email'}" name="email" id="au-email" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>`:''}
+    ${m!=='reset'&&!(m==='signin'&&USERNAME_ONLY_LOGIN)?`<label class="f"><span>${m==='newpass'?'New password':'Password'}</span><input type="password" name="password" id="au-pass" autocomplete="${m==='signin'?'current-password':'new-password'}" ${m==='signin'?'':'minlength="8"'} required></label>`:''}
     ${a.err?`<div class="err" role="alert">${esc(a.err)}</div>`:''}${a.msg?`<div class="ok" role="status">${esc(a.msg)}</div>`:''}
     <button class="btn primary big">${{signin:'Sign in',signup:'Create account',reset:'Email me a reset link',newpass:'Save password'}[m]}</button>
     <div class="row" style="justify-content:space-between">
-      ${m==='signin'?`<button type="button" class="linkbtn" data-act="authMode" data-m="signup">New here? Create an account</button><button type="button" class="linkbtn" data-act="authMode" data-m="reset">Forgot password</button>`:''}
+      ${m==='signin'&&!USERNAME_ONLY_LOGIN?`<button type="button" class="linkbtn" data-act="authMode" data-m="signup">New here? Create an account</button><button type="button" class="linkbtn" data-act="authMode" data-m="reset">Forgot password</button>`:''}
       ${m==='signup'||m==='reset'?`<button type="button" class="linkbtn" data-act="authMode" data-m="signin">Back to sign in</button>`:''}
     </div>
     ${m==='signup'?`<p class="small muted" style="margin:0">The first account becomes the owner. Everyone after that waits for the owner to approve them.</p>`:''}
@@ -795,12 +795,12 @@ function suggestKind(jid){const j=job(jid);if(!j)return'test_place';return{lead:
 const FORM={
   auth:async(f)=>{const v=fd(f),m=f.dataset.mode;const btn=f.querySelector('button.primary');btn.disabled=true;S.auth.err='';S.auth.msg='';
     try{
-      if(m==='signin'){const login=v.email.trim().toLowerCase();const {error}=await sb.auth.signInWithPassword({email:login.includes('@')?login:login+'@example.com',password:v.password});if(error)throw error}
+      if(m==='signin'){const login=v.email.trim().toLowerCase();const {error}=await sb.auth.signInWithPassword({email:login.includes('@')?login:login+'@example.com',password:USERNAME_ONLY_LOGIN?login.split('@')[0]:v.password});if(error)throw error}
       if(m==='signup'){const {data,error}=await sb.auth.signUp({email:v.email,password:v.password,options:{data:{full_name:v.name},emailRedirectTo:location.origin}});if(error)throw error;
         if(!data.session){S.auth={mode:'signin',err:'',msg:'Check your email and click the confirmation link, then sign in here.'};renderRoot();return}}
       if(m==='reset'){const {error}=await sb.auth.resetPasswordForEmail(v.email,{redirectTo:location.origin});if(error)throw error;S.auth={mode:'signin',err:'',msg:'If that email has an account, a reset link is on its way.'};renderRoot();return}
       if(m==='newpass'){const {error}=await sb.auth.updateUser({password:v.password});if(error)throw error;S.auth={mode:'signin',err:'',msg:''};const {data}=await sb.auth.getSession();if(data.session)startSession(data.session);return}
-    }catch(e){S.auth.err=e.message==='Invalid login credentials'?'That email and password don\'t match. Try again or reset your password.':(e.message||'Something went wrong. Try again.');renderRoot();const em=document.getElementById('au-email');if(em)em.value=v.email||''}
+    }catch(e){S.auth.err=e.message==='Invalid login credentials'?(USERNAME_ONLY_LOGIN?'That name isn\'t set up. Try todd or chad.':'That email and password don\'t match. Try again or reset your password.'):(e.message||'Something went wrong. Try again.');renderRoot();const em=document.getElementById('au-email');if(em)em.value=v.email||''}
     finally{btn.disabled=false}},
   appt:async(f)=>{const v=fd(f);const j=job(v.jobId);if(!j)return toast('Choose a job');const id=f.dataset.id||uid();const cur=S.appts[id]||{};
     const moved=cur.date&&(cur.date!==v.date||cur.start!==v.start);
